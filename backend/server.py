@@ -48,8 +48,8 @@ def extract(url):
         raise ValueError('Tek bir video bağlantısı kullan. Canlı yayın desteklenmiyor.')
     fs = data.get('formats', [])
     heights = sorted({int(f['height']) for f in fs if f.get('height') and f.get('vcodec') != 'none' and not f.get('has_drm')}, reverse=True)
-    audio = any(f.get('acodec') not in (None, 'none') for f in fs)
-    return {'url': url, 'title': data.get('title', 'İçerik'), 'duration': data.get('duration'), 'uploader': data.get('uploader', ''), 'video': [{'value': str(h), 'label': str(h)+'p'} for h in heights], 'audio': ([{'value':'original','label':'Orijinal · hızlı'}, {'value':'320','label':'MP3 · 320 kbps'}, {'value':'192','label':'MP3 · 192 kbps'}, {'value':'128','label':'MP3 · 128 kbps'}] if audio else [])}
+    audio = any(f.get('acodec') not in (None, 'none') for f in fs) or data.get('ext') in ('mp4','mkv','webm','mov','mp3','m4a','ogg','wav')
+    return {'url': url, 'title': data.get('title', 'İçerik'), 'duration': data.get('duration'), 'uploader': data.get('uploader', ''), 'video': ([{'value': str(h), 'label': str(h)+'p'} for h in heights] or ([{'value':'best','label':'Orijinal video'}] if data.get('ext') in ('mp4','mkv','webm','mov','avi') else [])), 'audio': ([{'value':'original','label':'Orijinal · hızlı'}, {'value':'320','label':'MP3 · 320 kbps'}, {'value':'192','label':'MP3 · 192 kbps'}, {'value':'128','label':'MP3 · 128 kbps'}] if audio else [])}
 
 def download(jid, url, mode, quality):
     job = JOBS[jid]
@@ -69,8 +69,7 @@ def download(jid, url, mode, quality):
         if quality != 'original':
             opts['postprocessors'] = [{'key':'FFmpegExtractAudio','preferredcodec':'mp3','preferredquality':quality}]
     else:
-        h = int(quality)
-        opts['format'] = f'bestvideo[height<={h}]+bestaudio/best[height<={h}]'
+        opts['format'] = 'bestvideo+bestaudio/best' if quality == 'best' else f'bestvideo[height<={int(quality)}]+bestaudio/best[height<={int(quality)}]'
         opts['merge_output_format'] = 'mkv'
     try:
         with yt_dlp.YoutubeDL(opts) as ydl: ydl.download([url])
@@ -132,7 +131,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.reply(result)
             if self.path=='/api/download':
                 mode=data.get('mode');q=str(data.get('quality',''))
-                if mode not in ('audio','video') or (mode=='audio' and q not in ('original','320','192','128')) or (mode=='video' and (not q.isdigit() or not 1<=int(q)<=16384)): raise ValueError('Geçersiz kalite.')
+                if mode not in ('audio','video') or (mode=='audio' and q not in ('original','320','192','128')) or (mode=='video' and q!='best' and (not q.isdigit() or not 1<=int(q)<=16384)): raise ValueError('Geçersiz kalite.')
                 if sum(p.stat().st_size for p in TEMP.rglob('*') if p.is_file()) > 750*1024*1024:
                     return self.reply({'error':'Geçici depolama dolu. Birkaç dakika sonra tekrar dene.'},503)
                 if not LIMIT.acquire(blocking=False): return self.reply({'error':'İki işlem zaten çalışıyor. Biraz bekle.'},429)
