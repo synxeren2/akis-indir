@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certi
 COPY --from=deno /deno /usr/local/bin/deno
 WORKDIR /app
 COPY backend/requirements.txt backend/requirements.txt
-RUN pip install --no-cache-dir -r backend/requirements.txt
+RUN pip install --no-cache-dir --upgrade --pre -r backend/requirements.txt
 COPY backend backend
 COPY dist dist
 RUN useradd --create-home app

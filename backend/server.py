@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 POOL = ThreadPoolExecutor(max_workers=2)
 JOBS = {}
 TEMP = Path(tempfile.mkdtemp(prefix='akis-'))
-BASE = {'quiet': True, 'no_warnings': True, 'noplaylist': True, 'socket_timeout': 25, 'retries': 3, 'concurrent_fragment_downloads': 2, 'max_filesize': 250*1024*1024, 'cachedir': False, 'extractor_args': {'youtube': {'player_client': ['default']}}, 'match_filter': lambda info, **kw: 'Canlı yayın veya 30 dakikadan uzun içerik desteklenmiyor.' if info.get('is_live') or (info.get('duration') or 0)>1800 else None, 'js_runtimes': {'deno': {}}}
+BASE = {'quiet': True, 'no_warnings': False, 'noplaylist': True, 'socket_timeout': 25, 'retries': 3, 'concurrent_fragment_downloads': 2, 'max_filesize': 250*1024*1024, 'cachedir': False, 'match_filter': lambda info, **kw: 'Canlı yayın veya 30 dakikadan uzun içerik desteklenmiyor.' if info.get('is_live') or (info.get('duration') or 0)>1800 else None, 'js_runtimes': {'deno': {}}}
 def validate(value):
     u = urlparse(value)
     if u.scheme not in ('http', 'https') or not u.hostname or u.username or u.password:
@@ -139,7 +139,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.reply({'error':'Bulunamadı'},404)
         except Exception as e: self.reply({'error':str(e)},400)
     def do_GET(self):
-        if self.path == '/health': return self.reply({'ok':True,'ffmpeg':bool(shutil.which('ffmpeg')),'deno':bool(shutil.which('deno'))})
+        if self.path == '/health': return self.reply({'ok':True,'ffmpeg':bool(shutil.which('ffmpeg')),'deno':bool(shutil.which('deno')),'yt_dlp':yt_dlp.version.__version__})
         if not self.allowed(): return self.reply({'error':'Erişim reddedildi'},403)
         if self.path.startswith('/api/jobs/'):
             j=JOBS.get(self.path.rsplit('/',1)[-1]);return self.reply({k:v for k,v in j.items() if k!='file'} if j else {'error':'İş bulunamadı'},200 if j else 404)
